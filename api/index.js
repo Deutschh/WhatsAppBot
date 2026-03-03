@@ -86,6 +86,14 @@ app.post("/api", async (req, res) => {
     const value = body.entry?.[0]?.changes?.[0]?.value;
     const message = value?.messages?.[0];
 
+    const statuses = value?.statuses?.[0];
+    if (statuses) {
+      console.log(`📈 Status da Mensagem (${statuses.id}): ${statuses.status}`);
+      if (statuses.errors) {
+        console.log("❌ Erro de Entrega Final:", JSON.stringify(statuses.errors, null, 2));
+      }
+    }
+
     if (message) {
       const from = message.from; // O número que enviou a mensagem (ex: 5511981479715)
       
