@@ -2,14 +2,15 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
+// CONFIGURAÇÕES (Certifique-se de que estão na Vercel!)
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
-// Função para mensagens de texto simples
+// 1. Função para enviar MENSAGEM DE TEXTO com Logs detalhados
 async function sendWhatsAppMessage(to, text) {
   try {
-    await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -22,15 +23,18 @@ async function sendWhatsAppMessage(to, text) {
         text: { body: text },
       }),
     });
+
+    const data = await response.json();
+    console.log(`📡 Resposta da Meta (Texto) para ${to}:`, JSON.stringify(data, null, 2));
   } catch (error) {
-    console.error("Erro ao enviar texto:", error);
+    console.error("❌ Erro ao enviar texto:", error);
   }
 }
 
-// Função para BOTÕES INTERATIVOS (Máximo 3 botões)
+// 2. Função para enviar BOTÕES INTERATIVOS
 async function sendInteractiveButtons(to, text, buttons) {
   try {
-    await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -53,22 +57,28 @@ async function sendInteractiveButtons(to, text, buttons) {
         }
       }),
     });
+
+    const data = await response.json();
+    console.log(`📡 Resposta da Meta (Botões) para ${to}:`, JSON.stringify(data, null, 2));
   } catch (error) {
-    console.error("Erro ao enviar botões:", error);
+    console.error("❌ Erro ao enviar botões:", error);
   }
 }
 
+// 3. WEBHOOK: Validação inicial (Handshake)
 app.get("/api", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("WEBHOOK_VALIDADO ✅");
     return res.status(200).send(challenge);
   }
   res.sendStatus(403);
 });
 
+// 4. WEBHOOK: Recebimento de mensagens e Cliques
 app.post("/api", async (req, res) => {
   const body = req.body;
 
@@ -77,41 +87,43 @@ app.post("/api", async (req, res) => {
     const message = value?.messages?.[0];
 
     if (message) {
-      const from = message.from;
-      const numeroDestino = limparNumero(from); // Limpa o número antes de qualquer coisa
+      const from = message.from; // O número que enviou a mensagem (ex: 5511981479715)
+      
+      // DICA: Use o 'from' direto sem limpar o número para testar a entrega no Sandbox
+      const numeroDestino = from; 
 
-      // LOGICA PARA MENSAGEM DE TEXTO
+      // --- LOGICA PARA MENSAGEM DE TEXTO ---
       if (message.type === "text") {
         const msgText = message.text.body.toLowerCase().trim();
-        let resposta = "";
+        console.log(`📩 Mensagem recebida de ${from}: ${msgText}`);
 
         switch (msgText) {
           case "oi":
           case "menu":
-            // Enviando BOTÕES em vez de apenas texto
+          case "ola":
             await sendInteractiveButtons(
               numeroDestino, 
-              "*Bem-vindo!* 🤖\nEscolha uma opção:", 
+              "*Atendimento DeutschBot* 🤖\nOlá! Como posso ajudar no seu projeto hoje?", 
               ["Serviços 💻", "Orçamento 📈", "Falar com Humano"]
             );
-            return res.sendStatus(200);
-
-          case "1":
-            resposta = `*Nossos Serviços:* 💻\n- Landing Pages\n- Bots de WhatsApp\n- Sistemas.`;
             break;
+
           default:
-            resposta = `Não entendi. Digite *MENU* para ver as opções.`;
+            await sendWhatsAppMessage(numeroDestino, "Não entendi. 🤔 Digite *MENU* para ver as opções.");
         }
-        await sendWhatsAppMessage(numeroDestino, resposta);
       } 
       
-      // LOGICA PARA CLIQUE NOS BOTÕES
+      // --- LOGICA PARA CLIQUE NOS BOTÕES ---
       else if (message.type === "interactive") {
         const buttonTitle = message.interactive.button_reply.title;
+        console.log(`🔘 Botão clicado por ${from}: ${buttonTitle}`);
+
         if (buttonTitle.includes("Serviços")) {
-          await sendWhatsAppMessage(numeroDestino, "Trabalho com Landing Pages e Automação.");
+          await sendWhatsAppMessage(numeroDestino, "Atualmente ofereço criação de Landing Pages e automação de processos.");
         } else if (buttonTitle.includes("Orçamento")) {
-          await sendWhatsAppMessage(numeroDestino, "Me conte um pouco mais sobre o seu projeto!");
+          await sendWhatsAppMessage(numeroDestino, "Perfeito! Me mande uma breve descrição do que você precisa.");
+        } else {
+          await sendWhatsAppMessage(numeroDestino, "Em breve o Guilherme entrará em contato com você! ⏳");
         }
       }
     }
@@ -119,13 +131,5 @@ app.post("/api", async (req, res) => {
   }
   res.sendStatus(404);
 });
-
-function limparNumero(numero) {
-  let limpo = numero.replace(/\D/g, "");
-  if (limpo.startsWith("55") && limpo.length === 13) {
-    limpo = limpo.substring(0, 4) + limpo.substring(5);
-  }
-  return limpo;
-}
 
 module.exports = app;
