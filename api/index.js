@@ -10,7 +10,7 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 // 1. Função para enviar MENSAGEM DE TEXTO com Logs detalhados
 async function sendWhatsAppMessage(to, text) {
   try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -34,7 +34,7 @@ async function sendWhatsAppMessage(to, text) {
 // 2. Função para enviar BOTÕES INTERATIVOS
 async function sendInteractiveButtons(to, text, buttons) {
   try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${WHATSAPP_TOKEN}`,
